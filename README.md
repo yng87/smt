@@ -4,7 +4,7 @@ CLI tool to submit your script to SageMaker training.
 
 ## Installation
 ```bash
-$ uv tool install <path/to/smt>
+$ uv tool install https://github.com/yng87/smt.git
 ```
 
 ## Usage
@@ -21,7 +21,7 @@ $ smt --config config.yaml .
 
 This command makes `tar.gz` from specified directory (current working directory in the above example), submit it to S3, and executes the job on SageMaker training.
 
-Job configuration is specified by `config.yaml` as
+Job configuration is specified by yaml (`config.yaml` in the above example) as
 ```yaml
 sagemaker_training_config:
   aws_s3_bucket: <bucket name to save codes>
