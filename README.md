@@ -27,6 +27,10 @@ sagemaker_training_config:
   aws_s3_bucket: <bucket name to save codes>
   aws_sm_execution_role_arn: <SageMaker Execution IAM role ARN>
   image_uri: <Docker image URI to run your script>
+  input_s3_uri:
+    # str or mapping
+    train: s3://<bucket>/train
+    val: s3://<bucket>/val
 estimator_config:
   # see sagemaker document for available configurations
   # https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html#sagemaker.estimator.Estimator
@@ -39,4 +43,7 @@ estimator_config:
   max_wait: 3600
   hyperparameters:
     param: 42
+  checkpoint_s3_uri: s3://<bucket>/<path>/<to>/<checkpoint>
+  output_path: s3://<bucket>/<path>/<to>/<output>
+  input_mode: FastFile
 ```

@@ -22,6 +22,7 @@ class SagemakerTrainingConfig(BaseModel):
     aws_s3_bucket: str
     aws_sm_execution_role_arn: str
     image_uri: str
+    input_s3_uri: str | dict[str, str] = ""
     run_id: str = Field(
         default_factory=lambda: datetime.now().strftime("%Y%m%dT%H%M%S%f")
     )
@@ -31,33 +32,26 @@ def json_encode_hyperparameters(hyperparameters: dict[str, Any]) -> dict[str, st
     return {str(k): json.dumps(v) for (k, v) in hyperparameters.items()}
 
 
-class EstimatorConfig(BaseModel):
-    entry_point: str
-    instance_count: int
-    instance_type: str
-    base_job_name: str
-    use_spot_instances: bool
-    max_run: int | None = None
-    max_wait: int | None = None
-    hyperparameters: dict[str, Any]
-
-    def to_estimator_args(self) -> dict[str, Any]:
-        args = self.model_dump()
-        if not self.use_spot_instances:
-            args.pop("max_run")
-            args.pop("max_wait")
-        args["hyperparameters"] = json_encode_hyperparameters(args["hyperparameters"])
-        return args
-
-
 class AppConfig(BaseModel):
     sagemaker_training_config: SagemakerTrainingConfig
-    estimator_config: EstimatorConfig
+    estimator_config: dict[str, Any]
 
     @classmethod
     def from_yaml(cls, filename: str) -> Self:
         with open(filename, "r") as f:
             return cls(**yaml.safe_load(f))
+
+    def to_estimator_args(self) -> dict[str, Any]:
+        args = self.estimator_config.copy()
+        if "hyperparameters" in args:
+            args["hyperparameters"] = json_encode_hyperparameters(
+                args["hyperparameters"]
+            )
+        return args
+
+    def build_job_name(self) -> str:
+        base_job_name = self.estimator_config.get("base_job_name", "job")
+        return f"{base_job_name}-{self.sagemaker_training_config.run_id}"
 
 
 def create_tar_file(source_dir: str, target_filename: str):
@@ -87,8 +81,10 @@ def prepare_training_code_on_s3(
 
 @app.command()
 def submit(
-    trainer_dir: Annotated[Path, typer.Argument(help="Trainer directory")] = "trainer",
-    config: Annotated[Path, typer.Option(help="Config file name")] = "config.yaml",
+    trainer_dir: Annotated[Path, typer.Argument(help="Trainer directory")] = Path.cwd(),
+    config: Annotated[Path, typer.Option(help="Config file name")] = Path(
+        "./config.yaml"
+    ),
 ):
     app_config = AppConfig.from_yaml(config)
     sm_settings = app_config.sagemaker_training_config
@@ -101,6 +97,10 @@ def submit(
         sm_settings.image_uri,
         sm_settings.aws_sm_execution_role_arn,
         source_dir=trainer_sources,
-        **app_config.estimator_config.to_estimator_args(),
+        **app_config.to_estimator_args(),
     )
-    estimator.fit(wait=False)
+    estimator.fit(
+        job_name=app_config.build_job_name(),
+        inputs=sm_settings.input_s3_uri,
+        wait=False,
+    )
