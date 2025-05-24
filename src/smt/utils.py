@@ -7,12 +7,8 @@ from pathlib import Path
 from typing import Any, Self
 
 import sagemaker
-import typer
 import yaml
 from pydantic import BaseModel, Field
-
-app = typer.Typer()
-
 
 logger = getLogger(__name__)
 sagemaker_session = sagemaker.session.Session()  # type: ignore
