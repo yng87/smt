@@ -18,7 +18,7 @@ class SagemakerTrainingConfig(BaseModel):
     aws_s3_bucket: str
     aws_sm_execution_role_arn: str
     image_uri: str
-    input_s3_uri: str | dict[str, str] = ""
+    input_s3_uri: str | dict[str, str] | None = None
     run_id: str = Field(
         default_factory=lambda: datetime.now().strftime("%Y%m%dT%H%M%S%f")
     )
