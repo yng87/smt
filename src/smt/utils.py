@@ -53,7 +53,7 @@ class AppConfig(BaseModel):
 def create_tar_file(source_dir: str, target_filename: str):
     with tarfile.open(target_filename, "w:gz") as tar:
         for root, _, files in os.walk(source_dir):
-            if root.endswith(".venv"):
+            if ".venv" in Path(root).parts:
                 continue
             for file in files:
                 full_path = os.path.join(root, file)
