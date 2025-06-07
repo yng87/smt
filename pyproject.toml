@@ -11,6 +11,11 @@ dependencies = [
     "typer>=0.15.4",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.1",
+]
+
 [project.scripts]
 smt = "smt.cli:app"
 
