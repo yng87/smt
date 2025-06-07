@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Self
 
 import sagemaker
-import yaml
 from pydantic import BaseModel, Field
 
 logger = getLogger(__name__)
@@ -34,6 +33,8 @@ class AppConfig(BaseModel):
 
     @classmethod
     def from_yaml(cls, filename: str) -> Self:
+        import yaml
+
         with open(filename, "r") as f:
             return cls(**yaml.safe_load(f))
 
@@ -53,7 +54,7 @@ class AppConfig(BaseModel):
 def create_tar_file(source_dir: str, target_filename: str):
     with tarfile.open(target_filename, "w:gz") as tar:
         for root, _, files in os.walk(source_dir):
-            if root.endswith(".venv"):
+            if ".venv" in Path(root).parts:
                 continue
             for file in files:
                 full_path = os.path.join(root, file)

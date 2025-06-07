@@ -8,7 +8,13 @@ requires-python = ">=3.13"
 dependencies = [
     "pydantic>=2.11.4",
     "sagemaker>=2.244.2",
+    "pyyaml>=6.0.2",
     "typer>=0.15.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.1",
 ]
 
 [project.scripts]
