@@ -19,7 +19,7 @@ Then execute `smt`
 $ smt --config config.yaml .
 ```
 
-This command makes `tar.gz` from specified directory (current working directory in the above example), submit it to S3, and executes the job on SageMaker training.
+This command makes `tar.gz` from specified directory (current working directory in the above example), submits it to S3, and executes the job on SageMaker training.
 
 Job configuration is specified by yaml (`config.yaml` in the above example) as
 ```yaml
