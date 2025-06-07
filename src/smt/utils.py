@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Self
 
 import sagemaker
-import yaml
 from pydantic import BaseModel, Field
 
 logger = getLogger(__name__)
@@ -34,6 +33,8 @@ class AppConfig(BaseModel):
 
     @classmethod
     def from_yaml(cls, filename: str) -> Self:
+        import yaml
+
         with open(filename, "r") as f:
             return cls(**yaml.safe_load(f))
 
