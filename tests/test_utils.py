@@ -4,25 +4,11 @@ import types
 from pathlib import Path
 import tarfile
 
-# Provide dummy sagemaker module to satisfy import in smt.utils
+# Provide dummy sagemaker module to satisfy import in smt.utils without pulling
+# in the heavy real dependency
 dummy_sm = types.ModuleType("sagemaker")
 dummy_sm.session = types.SimpleNamespace(Session=lambda *_, **__: None)
 sys.modules.setdefault("sagemaker", dummy_sm)
-
-# Provide minimal pydantic replacement so importing smt.utils doesn't require
-# installing the real dependency
-dummy_pydantic = types.ModuleType("pydantic")
-
-class DummyBaseModel:
-    pass
-
-def dummy_field(*_args, **_kwargs):
-    return None
-
-dummy_pydantic.BaseModel = DummyBaseModel
-dummy_pydantic.Field = dummy_field
-
-sys.modules.setdefault("pydantic", dummy_pydantic)
 
 from smt.utils import create_tar_file
 
