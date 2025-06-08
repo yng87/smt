@@ -1,14 +1,6 @@
 import os
-import sys
-import types
 from pathlib import Path
 import tarfile
-
-# Provide dummy sagemaker module to satisfy import in smt.utils without pulling
-# in the heavy real dependency
-dummy_sm = types.ModuleType("sagemaker")
-dummy_sm.session = types.SimpleNamespace(Session=lambda *_, **__: None)
-sys.modules.setdefault("sagemaker", dummy_sm)
 
 from smt.utils import create_tar_file
 

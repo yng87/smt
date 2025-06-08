@@ -6,11 +6,9 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, Self
 
-import sagemaker
 from pydantic import BaseModel, Field
 
 logger = getLogger(__name__)
-sagemaker_session = sagemaker.session.Session()  # type: ignore
 
 
 class SagemakerTrainingConfig(BaseModel):
@@ -64,6 +62,9 @@ def create_tar_file(source_dir: str, target_filename: str):
 def prepare_training_code_on_s3(
     sm_settings: SagemakerTrainingConfig, trainer_dir: str
 ) -> str:
+    import sagemaker
+
+    sagemaker_session = sagemaker.session.Session()  # type: ignore
     trainer_filename = f"trainer_{sm_settings.run_id}.tar.gz"
     try:
         create_tar_file(trainer_dir, trainer_filename)
@@ -77,6 +78,8 @@ def prepare_training_code_on_s3(
 
 
 def submit_training_job(trainer_dir: Path, config: Path):
+    import sagemaker
+
     app_config = AppConfig.from_yaml(config)
     sm_settings = app_config.sagemaker_training_config
     logger.info(f"Run ID: {sm_settings.run_id}")
