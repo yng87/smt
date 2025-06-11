@@ -8,6 +8,7 @@ requires-python = ">=3.13"
 dependencies = [
     "pydantic>=2.11.4",
     "sagemaker>=2.244.2",
+    "pyyaml>=6.0.2",
     "typer>=0.15.4",
 ]
 
@@ -17,3 +18,6 @@ smt = "smt.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8.4.0", "ruff>=0.11.13", "ty>=0.0.1a9"]

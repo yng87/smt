@@ -11,7 +11,6 @@ import yaml
 from pydantic import BaseModel, Field
 
 logger = getLogger(__name__)
-sagemaker_session = sagemaker.session.Session()  # type: ignore
 
 
 class SagemakerTrainingConfig(BaseModel):
@@ -53,7 +52,7 @@ class AppConfig(BaseModel):
 def create_tar_file(source_dir: str, target_filename: str):
     with tarfile.open(target_filename, "w:gz") as tar:
         for root, _, files in os.walk(source_dir):
-            if root.endswith(".venv"):
+            if ".venv" in Path(root).parts:
                 continue
             for file in files:
                 full_path = os.path.join(root, file)
@@ -63,6 +62,8 @@ def create_tar_file(source_dir: str, target_filename: str):
 def prepare_training_code_on_s3(
     sm_settings: SagemakerTrainingConfig, trainer_dir: str
 ) -> str:
+    sagemaker_session = sagemaker.session.Session()  # type: ignore
+
     trainer_filename = f"trainer_{sm_settings.run_id}.tar.gz"
     try:
         create_tar_file(trainer_dir, trainer_filename)
@@ -76,11 +77,11 @@ def prepare_training_code_on_s3(
 
 
 def submit_training_job(trainer_dir: Path, config: Path):
-    app_config = AppConfig.from_yaml(config)
+    app_config = AppConfig.from_yaml(str(config))
     sm_settings = app_config.sagemaker_training_config
     logger.info(f"Run ID: {sm_settings.run_id}")
 
-    trainer_sources = prepare_training_code_on_s3(sm_settings, trainer_dir)
+    trainer_sources = prepare_training_code_on_s3(sm_settings, str(trainer_dir))
 
     logger.info("Start training")
     estimator = sagemaker.estimator.Estimator(
