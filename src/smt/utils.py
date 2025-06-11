@@ -76,12 +76,11 @@ def prepare_training_code_on_s3(
 
 
 def submit_training_job(trainer_dir: Path, config: Path):
-
-    app_config = AppConfig.from_yaml(config)
+    app_config = AppConfig.from_yaml(str(config))
     sm_settings = app_config.sagemaker_training_config
     logger.info(f"Run ID: {sm_settings.run_id}")
 
-    trainer_sources = prepare_training_code_on_s3(sm_settings, trainer_dir)
+    trainer_sources = prepare_training_code_on_s3(sm_settings, str(trainer_dir))
 
     logger.info("Start training")
     estimator = sagemaker.estimator.Estimator(

@@ -12,14 +12,12 @@ dependencies = [
     "typer>=0.15.4",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.2.1",
-]
-
 [project.scripts]
 smt = "smt.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8.4.0", "ruff>=0.11.13", "ty>=0.0.1a9"]

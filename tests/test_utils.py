@@ -11,7 +11,7 @@ def test_create_tar_skips_venv(tmp_path: Path):
     # regular file
     (src / "file.txt").write_text("data")
     # nested directory
-    (src / "sub" ).mkdir()
+    (src / "sub").mkdir()
     (src / "sub" / "subfile.txt").write_text("subdata")
     # .venv directories
     venv_root = src / ".venv"
@@ -31,4 +31,3 @@ def test_create_tar_skips_venv(tmp_path: Path):
     assert os.path.join("sub", "subfile.txt") in names
     # ensure .venv contents are not included
     assert all(".venv" not in n.split(os.sep) for n in names)
-
