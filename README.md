@@ -47,3 +47,12 @@ estimator_config:
   output_path: s3://<bucket>/<path>/<to>/<output>
   input_mode: FastFile
 ```
+
+## How to find SageMaker docker image URI?
+
+See [AWS document](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html). It is also found programatically by, e.g., 
+
+```python
+from sagemaker import image_uris
+image_uris.retrieve(framework='pytorch',region='ap-northeast-1',version='2.6.0',py_version='py312',image_scope='training', instance_type='ml.t3.large')
+```
