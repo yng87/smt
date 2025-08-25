@@ -5,7 +5,8 @@ from pathlib import Path
 from smt.utils import create_tar_file
 
 
-def test_create_tar_skips_venv(tmp_path: Path):
+def test_create_tar_includes_venv_by_default(tmp_path: Path):
+    """Note: This test validates that .venv is NOT automatically excluded (changed behavior)"""
     src = tmp_path / "src"
     src.mkdir()
     # regular file
@@ -16,10 +17,10 @@ def test_create_tar_skips_venv(tmp_path: Path):
     # .venv directories
     venv_root = src / ".venv"
     venv_root.mkdir()
-    (venv_root / "ignored.txt").write_text("ignore")
+    (venv_root / "included.txt").write_text("included")
     nested_venv = src / "sub" / ".venv" / "inner"
     nested_venv.mkdir(parents=True)
-    (nested_venv / "ignored.txt").write_text("inner")
+    (nested_venv / "included.txt").write_text("inner")
 
     tar_path = tmp_path / "out.tar.gz"
     create_tar_file(str(src), str(tar_path))
@@ -29,8 +30,9 @@ def test_create_tar_skips_venv(tmp_path: Path):
 
     assert "file.txt" in names
     assert os.path.join("sub", "subfile.txt") in names
-    # ensure .venv contents are not included
-    assert all(".venv" not in n.split(os.sep) for n in names)
+    # .venv contents are now INCLUDED (changed behavior)
+    assert ".venv/included.txt" in names
+    assert os.path.join("sub", ".venv", "inner", "included.txt") in names
 
 
 def test_create_tar_with_exclude_patterns_files(tmp_path: Path):
@@ -191,23 +193,15 @@ def test_create_tar_exclude_patterns_none_defaults_to_empty_list(tmp_path: Path)
     (src / "main.py").write_text("print('hello')")
     (src / "test.log").write_text("log content")  # パターンなしなので含まれる
 
-    # .venvは常に除外される
-    venv = src / ".venv"
-    venv.mkdir()
-    (venv / "lib.py").write_text("lib content")
-
     tar_path = tmp_path / "out.tar.gz"
     create_tar_file(str(src), str(tar_path), exclude_patterns=None)
 
     with tarfile.open(tar_path) as tar:
         names = tar.getnames()
 
-    # 通常のファイルは含まれる
+    # すべてのファイルが含まれる
     assert "main.py" in names
-    assert "test.log" in names  # 除外パターンがないので含まれる
-
-    # .venvは常に除外
-    assert not any(".venv" in name for name in names)
+    assert "test.log" in names
 
 
 def test_create_tar_exclude_patterns_empty_list(tmp_path: Path):
@@ -218,20 +212,37 @@ def test_create_tar_exclude_patterns_empty_list(tmp_path: Path):
     (src / "main.py").write_text("print('hello')")
     (src / "test.log").write_text("log content")
 
-    # .venvは常に除外される
-    venv = src / ".venv"
-    venv.mkdir()
-    (venv / "lib.py").write_text("lib content")
-
     tar_path = tmp_path / "out.tar.gz"
     create_tar_file(str(src), str(tar_path), exclude_patterns=[])
 
     with tarfile.open(tar_path) as tar:
         names = tar.getnames()
 
-    # 通常のファイルは含まれる
+    # すべてのファイルが含まれる
     assert "main.py" in names
     assert "test.log" in names
 
-    # .venvは常に除外
+
+def test_create_tar_can_exclude_venv_explicitly(tmp_path: Path):
+    """明示的に.venvを除外パターンに指定した場合のテスト"""
+    src = tmp_path / "src"
+    src.mkdir()
+
+    (src / "main.py").write_text("print('hello')")
+
+    # .venvディレクトリを作成
+    venv = src / ".venv"
+    venv.mkdir()
+    (venv / "lib.py").write_text("lib content")
+
+    tar_path = tmp_path / "out.tar.gz"
+    create_tar_file(str(src), str(tar_path), exclude_patterns=[".venv"])
+
+    with tarfile.open(tar_path) as tar:
+        names = tar.getnames()
+
+    # 通常のファイルは含まれる
+    assert "main.py" in names
+
+    # 明示的に除外した.venvは含まれない
     assert not any(".venv" in name for name in names)

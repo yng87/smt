@@ -46,6 +46,12 @@ estimator_config:
   checkpoint_s3_uri: s3://<bucket>/<path>/<to>/<checkpoint>
   output_path: s3://<bucket>/<path>/<to>/<output>
   input_mode: FastFile
+
+# Optional: Files/directories to exclude from tar.gz
+exclude_patterns:
+  - "*.pyc"
+  - "__pycache__"
+  - "*.log"
 ```
 
 ## How to find SageMaker docker image URI?
