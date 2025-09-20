@@ -74,3 +74,53 @@ See [AWS document](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sag
 from sagemaker import image_uris
 image_uris.retrieve(framework='pytorch',region='ap-northeast-1',version='2.6.0',py_version='py312',image_scope='training', instance_type='ml.t3.large')
 ```
+
+## SageMaker Training Data Access
+
+Understanding how your training code accesses input data, saves outputs, and manages checkpoints in SageMaker:
+
+### Input Data Access
+
+Data specified in `input_s3_uri` is copied from S3 to the training container:
+
+```yaml
+sagemaker_training_config:
+  input_s3_uri:
+    train: s3://my-bucket/data/train      # copied to /opt/ml/input/data/train
+    val: s3://my-bucket/data/validation   # copied to /opt/ml/input/data/val
+```
+
+```python
+train_path = os.environ['SM_CHANNEL_TRAIN']    # /opt/ml/input/data/train
+val_path = os.environ['SM_CHANNEL_VAL']        # /opt/ml/input/data/val
+```
+
+### Output Data
+
+SageMaker provides two types of output directories, both compressed as tar.gz and uploaded to S3:
+
+```python
+model_dir = os.environ['SM_MODEL_DIR']        # /opt/ml/model → model.tar.gz
+output_dir = os.environ['SM_OUTPUT_DIR']      # /opt/ml/output/data → output.tar.gz
+```
+
+**Config**:
+```yaml
+estimator_config:
+  output_path: s3://my-bucket/output/${run_id}  # Both tar.gz files saved here
+```
+
+### Checkpoints
+
+For long training jobs, save checkpoints to `/opt/ml/checkpoints/` for automatic S3 sync:
+
+```python
+checkpoint_dir = '/opt/ml/checkpoints'
+```
+
+**Config**:
+```yaml
+estimator_config:
+  checkpoint_s3_uri: s3://my-bucket/checkpoints/${run_id}  # Checkpoints synced here
+```
+
