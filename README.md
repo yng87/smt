@@ -24,9 +24,9 @@ This command makes `tar.gz` from specified directory (current working directory 
 Job configuration is specified by yaml (`config.yaml` in the above example) as
 ```yaml
 sagemaker_training_config:
-  code_destination_s3_uri: s3://<bucket>/<path>/to/code
-  aws_sm_execution_role_arn: <SageMaker Execution IAM role ARN>
-  image_uri: <Docker image URI to run your script>
+  code_destination_s3_uri: s3://<bucket>/<path>/to/store/code
+  sagemaker_execution_role_arn: <SageMaker Execution IAM role ARN>
+  training_image_uri: <Docker image URI to run your script>
   input_s3_uri:
     # str or mapping
     train: s3://<bucket>/train
