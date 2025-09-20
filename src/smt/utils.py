@@ -15,9 +15,9 @@ logger = getLogger(__name__)
 
 
 class SagemakerTrainingConfig(BaseModel):
-    aws_s3_bucket: str
-    aws_sm_execution_role_arn: str
-    image_uri: str
+    code_destination_s3_uri: str
+    sagemaker_execution_role_arn: str
+    training_image_uri: str
     input_s3_uri: str | dict[str, str] | None = None
     run_id: str = Field(
         default_factory=lambda: datetime.now().strftime("%Y%m%dT%H%M%S%f")
@@ -121,11 +121,19 @@ def prepare_training_code_on_s3(
 ) -> str:
     sagemaker_session = sagemaker.session.Session()  # type: ignore
 
+    # Parse S3 URI to extract bucket and key prefix
+    s3_uri = sm_settings.code_destination_s3_uri
+    if not s3_uri.startswith("s3://"):
+        raise ValueError(f"code_destination_s3_uri must start with 's3://': {s3_uri}")
+
+    s3_path = s3_uri[5:]  # Remove 's3://' prefix
+    bucket_name, key_prefix = s3_path.split("/", 1) if "/" in s3_path else (s3_path, "")
+
     trainer_filename = f"trainer_{sm_settings.run_id}.tar.gz"
     try:
         create_tar_file(trainer_dir, trainer_filename, exclude_patterns)
         sources = sagemaker_session.upload_data(
-            trainer_filename, sm_settings.aws_s3_bucket, "code"
+            trainer_filename, bucket_name, key_prefix
         )
     finally:
         os.remove(trainer_filename)
@@ -144,8 +152,8 @@ def submit_training_job(trainer_dir: Path, config: Path):
 
     logger.info("Start training")
     estimator = sagemaker.estimator.Estimator(
-        sm_settings.image_uri,
-        sm_settings.aws_sm_execution_role_arn,
+        sm_settings.training_image_uri,
+        sm_settings.sagemaker_execution_role_arn,
         source_dir=trainer_sources,
         **app_config.to_estimator_args(),
     )
