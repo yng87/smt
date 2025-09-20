@@ -143,8 +143,13 @@ def prepare_training_code_on_s3(
     if not s3_uri.startswith("s3://"):
         raise ValueError(f"code_destination_s3_uri must start with 's3://': {s3_uri}")
 
-    s3_path = s3_uri[5:]  # Remove 's3://' prefix
-    bucket_name, key_prefix = s3_path.split("/", 1) if "/" in s3_path else (s3_path, "")
+    s3_path = s3_uri[5:].rstrip("/")  # Remove 's3://' prefix
+    if "/" not in s3_path:
+        raise ValueError(
+            f"code_destination_s3_uri must include a key prefix after bucket: {s3_uri}"
+        )
+
+    bucket_name, key_prefix = s3_path.split("/", 1)
 
     trainer_filename = f"trainer_{sm_settings.run_id}.tar.gz"
     try:
