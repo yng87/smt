@@ -43,8 +43,8 @@ estimator_config:
   max_wait: 3600
   hyperparameters:
     param: 42
-  checkpoint_s3_uri: s3://<bucket>/<path>/<to>/<checkpoint>
-  output_path: s3://<bucket>/<path>/<to>/<output>
+  checkpoint_s3_uri: s3://<bucket>/checkpoints/${run_id}
+  output_path: s3://<bucket>/outputs/${run_id}
   input_mode: FastFile
 
 # Optional: Files/directories to exclude from tar.gz
@@ -52,6 +52,18 @@ exclude_patterns:
   - "*.pyc"
   - "__pycache__"
   - "*.log"
+```
+
+## Variable Substitution
+
+You can use variable substitution in your configuration files. Currently supported variables:
+- `${run_id}`: Automatically generated run ID (timestamp-based)
+
+Example usage:
+```yaml
+estimator_config:
+  checkpoint_s3_uri: s3://my-bucket/checkpoints/${run_id}
+  output_path: s3://my-bucket/outputs/${run_id}
 ```
 
 ## How to find SageMaker docker image URI?

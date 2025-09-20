@@ -28,6 +28,20 @@ def json_encode_hyperparameters(hyperparameters: dict[str, Any]) -> dict[str, st
     return {str(k): json.dumps(v) for (k, v) in hyperparameters.items()}
 
 
+def substitute_variables(value: Any, variables: dict[str, str]) -> Any:
+    """Substitute variables in string values recursively"""
+    if isinstance(value, str):
+        for var_name, var_value in variables.items():
+            value = value.replace(f"${{{var_name}}}", var_value)
+        return value
+    elif isinstance(value, dict):
+        return {k: substitute_variables(v, variables) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [substitute_variables(item, variables) for item in value]
+    else:
+        return value
+
+
 class AppConfig(BaseModel):
     sagemaker_training_config: SagemakerTrainingConfig
     estimator_config: dict[str, Any]
@@ -39,7 +53,10 @@ class AppConfig(BaseModel):
             return cls(**yaml.safe_load(f))
 
     def to_estimator_args(self) -> dict[str, Any]:
-        args = self.estimator_config.copy()
+        # Apply variable substitution
+        variables = {"run_id": self.sagemaker_training_config.run_id}
+        args = substitute_variables(self.estimator_config.copy(), variables)
+
         if "hyperparameters" in args:
             args["hyperparameters"] = json_encode_hyperparameters(
                 args["hyperparameters"]

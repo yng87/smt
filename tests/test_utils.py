@@ -2,7 +2,7 @@ import os
 import tarfile
 from pathlib import Path
 
-from smt.utils import create_tar_file
+from smt.utils import create_tar_file, substitute_variables
 
 
 def test_create_tar_includes_venv_by_default(tmp_path: Path):
@@ -246,3 +246,77 @@ def test_create_tar_can_exclude_venv_explicitly(tmp_path: Path):
 
     # 明示的に除外した.venvは含まれない
     assert not any(".venv" in name for name in names)
+
+
+def test_substitute_variables_string():
+    """文字列での変数展開テスト"""
+    variables = {"run_id": "20231225T120000123456"}
+
+    # 単純な変数展開
+    result = substitute_variables("s3://bucket/checkpoints/${run_id}", variables)
+    assert result == "s3://bucket/checkpoints/20231225T120000123456"
+
+    # 複数の変数
+    variables["bucket"] = "my-bucket"
+    result = substitute_variables("s3://${bucket}/checkpoints/${run_id}", variables)
+    assert result == "s3://my-bucket/checkpoints/20231225T120000123456"
+
+    # 変数がない場合
+    result = substitute_variables("s3://bucket/path", variables)
+    assert result == "s3://bucket/path"
+
+
+def test_substitute_variables_dict():
+    """辞書での変数展開テスト"""
+    variables = {"run_id": "20231225T120000123456"}
+
+    config = {
+        "checkpoint_s3_uri": "s3://bucket/checkpoints/${run_id}",
+        "output_path": "s3://bucket/outputs/${run_id}",
+        "instance_type": "ml.m5.large",
+    }
+
+    result = substitute_variables(config, variables)
+
+    assert (
+        result["checkpoint_s3_uri"] == "s3://bucket/checkpoints/20231225T120000123456"
+    )
+    assert result["output_path"] == "s3://bucket/outputs/20231225T120000123456"
+    assert result["instance_type"] == "ml.m5.large"  # 変数がない値はそのまま
+
+
+def test_substitute_variables_nested():
+    """ネストした構造での変数展開テスト"""
+    variables = {"run_id": "20231225T120000123456"}
+
+    config = {
+        "estimator_config": {
+            "checkpoint_s3_uri": "s3://bucket/checkpoints/${run_id}",
+            "hyperparameters": {"model_dir": "/opt/ml/model/${run_id}", "epochs": 10},
+        },
+        "paths": ["s3://bucket/data/${run_id}", "s3://bucket/logs/${run_id}"],
+    }
+
+    result = substitute_variables(config, variables)
+
+    assert (
+        result["estimator_config"]["checkpoint_s3_uri"]
+        == "s3://bucket/checkpoints/20231225T120000123456"
+    )
+    assert (
+        result["estimator_config"]["hyperparameters"]["model_dir"]
+        == "/opt/ml/model/20231225T120000123456"
+    )
+    assert result["estimator_config"]["hyperparameters"]["epochs"] == 10
+    assert result["paths"][0] == "s3://bucket/data/20231225T120000123456"
+    assert result["paths"][1] == "s3://bucket/logs/20231225T120000123456"
+
+
+def test_substitute_variables_non_string():
+    """文字列以外の値での変数展開テスト"""
+    variables = {"run_id": "20231225T120000123456"}
+
+    # 数値、ブール値、Noneは変更されない
+    assert substitute_variables(42, variables) == 42
+    assert substitute_variables(True, variables) is True
+    assert substitute_variables(None, variables) is None
