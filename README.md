@@ -100,8 +100,9 @@ val_path = os.environ['SM_CHANNEL_VAL']        # /opt/ml/input/data/val
 SageMaker provides two types of output directories, both compressed as tar.gz and uploaded to S3:
 
 ```python
-model_dir = os.environ['SM_MODEL_DIR']        # /opt/ml/model → model.tar.gz
-output_dir = os.environ['SM_OUTPUT_DIR']      # /opt/ml/output/data → output.tar.gz
+model_dir = os.environ['SM_MODEL_DIR']                 # /opt/ml/model → model.tar.gz
+output_dir = os.environ['SM_OUTPUT_DIR']               # /opt/ml/output
+output_data_dir = os.path.join(output_dir, "data")     # /opt/ml/output/data → output.tar.gz
 ```
 
 **Config**:
@@ -109,6 +110,8 @@ output_dir = os.environ['SM_OUTPUT_DIR']      # /opt/ml/output/data → output.t
 estimator_config:
   output_path: s3://my-bucket/output/${run_id}  # Both tar.gz files saved here
 ```
+
+Note: `SM_OUTPUT_DIR` points to `/opt/ml/output`, but only files written under `/opt/ml/output/data` are automatically uploaded to S3. Save artifacts under `output_data_dir`.
 
 ### Checkpoints
 
@@ -123,4 +126,3 @@ checkpoint_dir = '/opt/ml/checkpoints'
 estimator_config:
   checkpoint_s3_uri: s3://my-bucket/checkpoints/${run_id}  # Checkpoints synced here
 ```
-
