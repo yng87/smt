@@ -61,17 +61,6 @@ exclude_patterns:
   - "*.log"
 ```
 
-This tool requires SageMaker Python SDK V3 and submits jobs with
-`ModelTrainer.train(wait=False)` (V3 has no `ModelTrainer.fit`). V2 configuration
-keys such as `estimator_config` and `input_s3_uri` are no longer supported.
-`source_code` is required; specify `entry_script` or `command` there.
-`smt` supplies `source_code.source_dir` with the uploaded archive URI. Configure
-archive exclusions with top-level `exclude_patterns`.
-Omit `input_data_config` when the script needs no input channels.
-Hyperparameters are passed as native YAML values; the SDK serializes them.
-SageMaker V3 appends a timestamp to `base_job_name`; include `${run_id}` in the
-base name when desired, keeping the resulting name within SageMaker's 63-character limit.
-
 ## Variable Substitution
 
 You can use variable substitution in your configuration files. Currently supported variables:
