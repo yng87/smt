@@ -2,7 +2,12 @@ import os
 import tarfile
 from pathlib import Path
 
-from smt.utils import create_tar_file, substitute_variables
+from smt.utils import (
+    AppConfig,
+    SagemakerTrainingConfig,
+    create_tar_file,
+    substitute_variables,
+)
 
 
 def test_create_tar_includes_venv_by_default(tmp_path: Path):
@@ -320,3 +325,30 @@ def test_substitute_variables_non_string():
     assert substitute_variables(42, variables) == 42
     assert substitute_variables(True, variables) is True
     assert substitute_variables(None, variables) is None
+
+
+def test_model_trainer_args():
+    config = AppConfig(
+        sagemaker_training_config=SagemakerTrainingConfig(
+            code_destination_s3_uri="s3://bucket/code",
+            sagemaker_execution_role_arn="arn:aws:iam::123456789012:role/Training",
+            training_image_uri="image:latest",
+            run_id="test-run",
+        ),
+        model_trainer_config={
+            "source_code": {"entry_script": "main.py"},
+            "checkpoint_config": {"s3_uri": "s3://bucket/${run_id}"},
+            "hyperparameters": {"label": "hello", "epochs": 10},
+        },
+    )
+
+    args = config.to_model_trainer_args("s3://bucket/code.tar.gz")
+
+    assert args == {
+        "source_code": {
+            "entry_script": "main.py",
+            "source_dir": "s3://bucket/code.tar.gz",
+        },
+        "checkpoint_config": {"s3_uri": "s3://bucket/test-run"},
+        "hyperparameters": {"label": "hello", "epochs": 10},
+    }

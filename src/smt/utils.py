@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Self
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 from sagemaker.core.helper.session_helper import Session
 from sagemaker.train.model_trainer import ModelTrainer
 
@@ -15,8 +15,6 @@ logger = getLogger(__name__)
 
 
 class SagemakerTrainingConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
     code_destination_s3_uri: str
     sagemaker_execution_role_arn: str
     training_image_uri: str
@@ -40,8 +38,6 @@ def substitute_variables(value: Any, variables: dict[str, str]) -> Any:
 
 
 class AppConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
     sagemaker_training_config: SagemakerTrainingConfig
     model_trainer_config: dict[str, Any]
     exclude_patterns: list[str] = Field(default_factory=list)
@@ -124,9 +120,10 @@ def create_tar_file(
 def prepare_training_code_on_s3(
     sm_settings: SagemakerTrainingConfig,
     trainer_dir: str,
-    sagemaker_session: Session,
     exclude_patterns: list[str] | None = None,
 ) -> str:
+    sagemaker_session = Session()
+
     # Parse S3 URI to extract bucket and key prefix
     s3_uri = sm_settings.code_destination_s3_uri
     if not s3_uri.startswith("s3://"):
@@ -156,17 +153,15 @@ def submit_training_job(trainer_dir: Path, config: Path):
     app_config = AppConfig.from_yaml(str(config))
     sm_settings = app_config.sagemaker_training_config
     logger.info(f"Run ID: {sm_settings.run_id}")
-    session = Session()
 
     trainer_sources = prepare_training_code_on_s3(
-        sm_settings, str(trainer_dir), session, app_config.exclude_patterns
+        sm_settings, str(trainer_dir), app_config.exclude_patterns
     )
 
     logger.info("Start training")
     trainer = ModelTrainer(
         training_image=sm_settings.training_image_uri,
         role=sm_settings.sagemaker_execution_role_arn,
-        sagemaker_session=session,
         **app_config.to_model_trainer_args(trainer_sources),
     )
     trainer.train(wait=False)
