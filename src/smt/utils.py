@@ -1,5 +1,4 @@
 import fnmatch
-import json
 import os
 import tarfile
 from datetime import datetime
@@ -7,25 +6,23 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, Self
 
-import sagemaker
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+from sagemaker.core.helper.session_helper import Session
+from sagemaker.train.model_trainer import ModelTrainer
 
 logger = getLogger(__name__)
 
 
 class SagemakerTrainingConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     code_destination_s3_uri: str
     sagemaker_execution_role_arn: str
     training_image_uri: str
-    input_s3_uri: str | dict[str, str] | None = None
     run_id: str = Field(
         default_factory=lambda: datetime.now().strftime("%Y%m%dT%H%M%S%f")
     )
-
-
-def json_encode_hyperparameters(hyperparameters: dict[str, Any]) -> dict[str, str]:
-    return {str(k): json.dumps(v) for (k, v) in hyperparameters.items()}
 
 
 def substitute_variables(value: Any, variables: dict[str, str]) -> Any:
@@ -43,8 +40,10 @@ def substitute_variables(value: Any, variables: dict[str, str]) -> Any:
 
 
 class AppConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     sagemaker_training_config: SagemakerTrainingConfig
-    estimator_config: dict[str, Any]
+    model_trainer_config: dict[str, Any]
     exclude_patterns: list[str] = Field(default_factory=list)
 
     @classmethod
@@ -52,20 +51,11 @@ class AppConfig(BaseModel):
         with open(filename, "r") as f:
             return cls(**yaml.safe_load(f))
 
-    def to_estimator_args(self) -> dict[str, Any]:
-        # Apply variable substitution
+    def to_model_trainer_args(self, source_uri: str) -> dict[str, Any]:
         variables = {"run_id": self.sagemaker_training_config.run_id}
-        args = substitute_variables(self.estimator_config.copy(), variables)
-
-        if "hyperparameters" in args:
-            args["hyperparameters"] = json_encode_hyperparameters(
-                args["hyperparameters"]
-            )
+        args = substitute_variables(self.model_trainer_config, variables)
+        args["source_code"]["source_dir"] = source_uri
         return args
-
-    def build_job_name(self) -> str:
-        base_job_name = self.estimator_config.get("base_job_name", "job")
-        return f"{base_job_name}-{self.sagemaker_training_config.run_id}"
 
 
 def _should_exclude_directory(
@@ -134,10 +124,9 @@ def create_tar_file(
 def prepare_training_code_on_s3(
     sm_settings: SagemakerTrainingConfig,
     trainer_dir: str,
+    sagemaker_session: Session,
     exclude_patterns: list[str] | None = None,
 ) -> str:
-    sagemaker_session = sagemaker.session.Session()  # type: ignore
-
     # Parse S3 URI to extract bucket and key prefix
     s3_uri = sm_settings.code_destination_s3_uri
     if not s3_uri.startswith("s3://"):
@@ -167,20 +156,17 @@ def submit_training_job(trainer_dir: Path, config: Path):
     app_config = AppConfig.from_yaml(str(config))
     sm_settings = app_config.sagemaker_training_config
     logger.info(f"Run ID: {sm_settings.run_id}")
+    session = Session()
 
     trainer_sources = prepare_training_code_on_s3(
-        sm_settings, str(trainer_dir), app_config.exclude_patterns
+        sm_settings, str(trainer_dir), session, app_config.exclude_patterns
     )
 
     logger.info("Start training")
-    estimator = sagemaker.estimator.Estimator(
-        sm_settings.training_image_uri,
-        sm_settings.sagemaker_execution_role_arn,
-        source_dir=trainer_sources,
-        **app_config.to_estimator_args(),
+    trainer = ModelTrainer(
+        training_image=sm_settings.training_image_uri,
+        role=sm_settings.sagemaker_execution_role_arn,
+        sagemaker_session=session,
+        **app_config.to_model_trainer_args(trainer_sources),
     )
-    estimator.fit(
-        job_name=app_config.build_job_name(),
-        inputs=sm_settings.input_s3_uri,
-        wait=False,
-    )
+    trainer.train(wait=False)
