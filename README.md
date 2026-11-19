@@ -27,25 +27,41 @@ sagemaker_training_config:
   code_destination_s3_uri: s3://<bucket>/<path>/to/store/code
   sagemaker_execution_role_arn: <SageMaker Execution IAM role ARN>
   training_image_uri: <Docker image URI to run your script>
-  input_s3_uri:
-    # str or mapping
-    train: s3://<bucket>/train
-    val: s3://<bucket>/val
-estimator_config:
-  # see sagemaker document for available configurations
-  # https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html#sagemaker.estimator.Estimator
-  entry_point: main.py
-  instance_count: 1
-  instance_type: ml.m5.large
-  base_job_name: test
-  use_spot_instances: true
-  max_run: 3600
-  max_wait: 3600
+model_trainer_config:
+  # ModelTrainer V3 constructor arguments (snake_case)
+  # https://sagemaker.readthedocs.io/en/v3docs/api/generated/sagemaker.train.model_trainer.html
+  source_code:
+    entry_script: main.py
+    requirements: requirements.txt
+  compute:
+    instance_count: 1
+    instance_type: ml.m5.large
+    enable_managed_spot_training: true
+  base_job_name: test-${run_id}
+  stopping_condition:
+    max_runtime_in_seconds: 3600
+    max_wait_time_in_seconds: 3600
   hyperparameters:
     param: 42
-  checkpoint_s3_uri: s3://<bucket>/checkpoints/${run_id}
-  output_path: s3://<bucket>/outputs/${run_id}
-  input_mode: FastFile
+  checkpoint_config:
+    s3_uri: s3://<bucket>/checkpoints/${run_id}
+  output_data_config:
+    s3_output_path: s3://<bucket>/outputs/${run_id}
+  input_data_config:
+    - channel_name: train
+      input_mode: FastFile
+      data_source:
+        s3_data_source:
+          s3_data_type: S3Prefix
+          s3_uri: s3://<bucket>/train
+          s3_data_distribution_type: FullyReplicated
+    - channel_name: val
+      input_mode: FastFile
+      data_source:
+        s3_data_source:
+          s3_data_type: S3Prefix
+          s3_uri: s3://<bucket>/val
+          s3_data_distribution_type: FullyReplicated
 
 # Optional: Files/directories to exclude from tar.gz
 exclude_patterns:
@@ -61,9 +77,11 @@ You can use variable substitution in your configuration files. Currently support
 
 Example usage:
 ```yaml
-estimator_config:
-  checkpoint_s3_uri: s3://my-bucket/checkpoints/${run_id}
-  output_path: s3://my-bucket/outputs/${run_id}
+model_trainer_config:
+  checkpoint_config:
+    s3_uri: s3://my-bucket/checkpoints/${run_id}
+  output_data_config:
+    s3_output_path: s3://my-bucket/outputs/${run_id}
 ```
 
 ## How to find SageMaker docker image URI?
@@ -71,7 +89,7 @@ estimator_config:
 See [AWS document](https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html). It is also found programatically by, e.g., 
 
 ```python
-from sagemaker import image_uris
+from sagemaker.core import image_uris
 image_uris.retrieve(framework='pytorch',region='ap-northeast-1',version='2.6.0',py_version='py312',image_scope='training', instance_type='ml.t3.large')
 ```
 
@@ -81,13 +99,15 @@ Understanding how your training code accesses input data, saves outputs, and man
 
 ### Input Data Access
 
-Data specified in `input_s3_uri` is copied from S3 to the training container:
+Declare input channels in `model_trainer_config.input_data_config`. In File mode, data is copied from S3; FastFile mode provides file access on demand:
 
 ```yaml
-sagemaker_training_config:
-  input_s3_uri:
-    train: s3://my-bucket/data/train      # copied to /opt/ml/input/data/train
-    val: s3://my-bucket/data/validation   # copied to /opt/ml/input/data/val
+model_trainer_config:
+  input_data_config:
+    - channel_name: train
+      data_source: s3://my-bucket/data/train      # /opt/ml/input/data/train
+    - channel_name: val
+      data_source: s3://my-bucket/data/validation # /opt/ml/input/data/val
 ```
 
 ```python
@@ -107,8 +127,9 @@ output_data_dir = os.path.join(output_dir, "data")     # /opt/ml/output/data →
 
 **Config**:
 ```yaml
-estimator_config:
-  output_path: s3://my-bucket/output/${run_id}  # Both tar.gz files saved here
+model_trainer_config:
+  output_data_config:
+    s3_output_path: s3://my-bucket/output/${run_id}
 ```
 
 Note: `SM_OUTPUT_DIR` points to `/opt/ml/output`, but only files written under `/opt/ml/output/data` are automatically uploaded to S3. Save artifacts under `output_data_dir`.
@@ -123,6 +144,7 @@ checkpoint_dir = '/opt/ml/checkpoints'
 
 **Config**:
 ```yaml
-estimator_config:
-  checkpoint_s3_uri: s3://my-bucket/checkpoints/${run_id}  # Checkpoints synced here
+model_trainer_config:
+  checkpoint_config:
+    s3_uri: s3://my-bucket/checkpoints/${run_id}
 ```
