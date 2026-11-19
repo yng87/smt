@@ -47,12 +47,21 @@ model_trainer_config:
     s3_uri: s3://<bucket>/checkpoints/${run_id}
   output_data_config:
     s3_output_path: s3://<bucket>/outputs/${run_id}
-  training_input_mode: FastFile
   input_data_config:
     - channel_name: train
-      data_source: s3://<bucket>/train
+      input_mode: FastFile
+      data_source:
+        s3_data_source:
+          s3_data_type: S3Prefix
+          s3_uri: s3://<bucket>/train
+          s3_data_distribution_type: FullyReplicated
     - channel_name: val
-      data_source: s3://<bucket>/val
+      input_mode: FastFile
+      data_source:
+        s3_data_source:
+          s3_data_type: S3Prefix
+          s3_uri: s3://<bucket>/val
+          s3_data_distribution_type: FullyReplicated
 
 # Optional: Files/directories to exclude from tar.gz
 exclude_patterns:

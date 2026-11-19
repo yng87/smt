@@ -157,11 +157,16 @@ def submit_training_job(trainer_dir: Path, config: Path):
     trainer_sources = prepare_training_code_on_s3(
         sm_settings, str(trainer_dir), app_config.exclude_patterns
     )
+    bucket_name, key_prefix = (
+        sm_settings.code_destination_s3_uri[5:].rstrip("/").split("/", 1)
+    )
+    session = Session(default_bucket=bucket_name, default_bucket_prefix=key_prefix)
 
     logger.info("Start training")
     trainer = ModelTrainer(
         training_image=sm_settings.training_image_uri,
         role=sm_settings.sagemaker_execution_role_arn,
+        sagemaker_session=session,
         **app_config.to_model_trainer_args(trainer_sources),
     )
     trainer.train(wait=False)
